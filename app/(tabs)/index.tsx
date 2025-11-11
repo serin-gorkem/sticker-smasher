@@ -1,7 +1,8 @@
+import domtoimage from "dom-to-image";
 import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library";
 import { useEffect, useRef, useState } from "react";
-import { ImageSourcePropType, StyleSheet, View } from "react-native";
+import { ImageSourcePropType, Platform, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { captureRef } from "react-native-view-shot";
 
@@ -26,23 +27,23 @@ export default function Index() {
     ImageSourcePropType | undefined
   >(undefined);
 
-  const imageRef = useRef<View>(null);
+  const imageRef = useRef<any>(null);
 
   // const [permissionResponse, requestPermission] = MediaLibrary.usePermissions();
 
-useEffect(() => {
-  (async () => {
-    try {
-      const { status } = await MediaLibrary.getPermissionsAsync();
-      if (status !== "granted") {
-        // sadece image/video erişimini manuel olarak iste
-        await MediaLibrary.requestPermissionsAsync();
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await MediaLibrary.getPermissionsAsync();
+        if (status !== "granted") {
+          // sadece image/video erişimini manuel olarak iste
+          await MediaLibrary.requestPermissionsAsync();
+        }
+      } catch (e) {
+        console.warn("MediaLibrary permission request skipped in Expo Go");
       }
-    } catch (e) {
-      console.warn("MediaLibrary permission request skipped in Expo Go");
-    }
-  })();
-}, []);
+    })();
+  }, []);
 
   const pickImageAsync = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -72,20 +73,37 @@ useEffect(() => {
   };
 
   const onSaveImageAsync = async () => {
-    try {
-      const localUri = await captureRef(imageRef, {
-        format: "png",
-        quality: 1,
-        result: "tmpfile",
-      });
+    if (Platform.OS !== "web") {
+      try {
+        const localUri = await captureRef(imageRef, {
+          format: "png",
+          quality: 1,
+          result: "tmpfile",
+        });
 
-      if (localUri) {
-        const asset = await MediaLibrary.saveToLibraryAsync(localUri);
-        alert("Saved to gallery!");
-        console.log("Saved asset:", asset);
+        if (localUri) {
+          const asset = await MediaLibrary.saveToLibraryAsync(localUri);
+          alert("Saved to gallery!");
+          console.log("Saved asset:", asset);
+        }
+      } catch (error) {
+        console.log(error);
       }
-    } catch (error) {
-      console.log(error);
+    } else {
+      try {
+        const dataUrl = await domtoimage.toJpeg(imageRef.current, {
+          quality: 0.95,
+          width: 320,
+          height: 440,
+        });
+
+        let link = document.createElement("a");
+        link.download = "sticker-smash.jpeg";
+        link.href = dataUrl;
+        link.click();
+      } catch (error) {
+        console.log(error);
+      }
     }
   };
 
